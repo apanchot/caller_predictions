@@ -21,10 +21,10 @@ function sampler(xx2,yy2,train,way,ratio_under_to_over)
 		return xx2,yy2,train
 	end
     yy = [i==true for i in yy]
-	trues = findall(x->x,yy)
-	falses = findall(x->!x,yy)
-	u = length(trues)
-	o = length(falses)
+	truez = findall(x->x,yy)
+	falsez = findall(x->!x,yy)
+	u = length(truez)
+	o = length(falsez)
 	r =  u/o
     println("ratio: ",r)
 	v = []
@@ -32,17 +32,17 @@ function sampler(xx2,yy2,train,way,ratio_under_to_over)
 		x = round(Int,ratio_under_to_over * o - u)
         println("number of new: ",x)
 		for i in StatsBase.sample(1:u,x,replace=true)
-			push!(v, trues[i])
+			push!(v, truez[i])
 		end
         train = vcat(train,length(yy2)+1:length(yy2)+length(v))
 		return vcat(xx2,xx[v,:]),vec(vcat(yy2,yy[v,:])),train
 	else
 		x = round(Int, u / ratio_under_to_over)
 		for i in StatsBase.sample(1:o,x,replace=false)
-			push!(v, falses[i])
+			push!(v, falsez[i])
 		end
 		
-		return vcat(xv[v,:],xv[trues,:]), vcat(yv[v],yv[trues] )
+		return vcat(xv[v,:],xv[truez,:]), vcat(yv[v],yv[truez] )
 	end
 	
 end
