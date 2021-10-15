@@ -1,5 +1,7 @@
-
+import FileIO
 import StatsBase
+import DataFrames
+
 function textonehot(df,col,delim=";")
 	filtermut = [split(i,delim) for i in df[:,col]]
 	filtermutect = unique(reduce(vcat,filtermut))
@@ -10,16 +12,25 @@ function textonehot(df,col,delim=";")
 			filtermutectdata[i,id] = 1.0
 		end
 	end
+	oldnames=names(filtermutectdata)
+	nams = replace.(names(filtermutectdata),"."=>"_")
+	diffs = oldnames .== nams
+	for i in 1:length(nams)
+		if ! diffs[i]
+			DataFrames.rename!(filtermutectdata,oldnames[i]=>nams[i])
+		end
+	end
 	return filtermutectdata
 end
 
-function sampler(xx2,yy2,train,way,ratio_under_to_over)
-	# yv=Array(yv)
+function sampler(xx2,yy2,train,testog,samplskey,way,ratio_under_to_over)
+	if isapprox(ratio_under_to_over, 0)
+		return xx2,yy2,train,testog,samplskey
+	end
     xx=xx2[train,:]
     yy=yy2[train]
-	if ratio_under_to_over == 0
-		return xx2,yy2,train
-	end
+	smpsyy=samplskey[train]
+
     yy = [i==true for i in yy]
 	truez = findall(x->x,yy)
 	falsez = findall(x->!x,yy)
@@ -35,16 +46,92 @@ function sampler(xx2,yy2,train,way,ratio_under_to_over)
 			push!(v, truez[i])
 		end
         train = vcat(train,length(yy2)+1:length(yy2)+length(v))
-		return vcat(xx2,xx[v,:]),vec(vcat(yy2,yy[v,:])),train
-	else
+		return vcat(xx2,xx[v,:]),vec(vcat(yy2,yy[v,:])),train,testog,vcat(samplskey,smpsyy[v])
+	elseif way == "under"
 		x = round(Int, u / ratio_under_to_over)
+		println("number of new: ",x)
 		for i in StatsBase.sample(1:o,x,replace=false)
 			push!(v, falsez[i])
 		end
-		
-		return vcat(xv[v,:],xv[truez,:]), vcat(yv[v],yv[truez] )
+		t1 = vcat(xx[v,:],xx[truez,:])
+		train = collect(1:nrow(t1))
+		# println(length(nrow(t1)+1))
+		# println(nrow(xx2[testog,:]))
+		# println(length(nrow(t1)+nrow(xx2[testog,:])))
+		test = collect(nrow(t1)+1:nrow(t1)+nrow(xx2[testog,:]))
+		t1 = vcat(t1,xx2[testog,:])
+		t2 = vcat(yy[v],yy[truez],yy2[testog] )
+
+		return t1,t2,train,test ,vcat(smpsyy[v],smpsyy[truez],samplskey[testog])
+	else
+		error("way not specified")
 	end
 	
+end
+
+function isonehot(val::Array)::Bool
+	if length(val) > 3
+		return false
+	end
+	for i in val
+		if ! ismissing(i) && i > 1.1
+			return false
+		end
+	end
+
+	val = Set(val)
+	if val == Set([missing,1.0,0.0])
+		return true
+	elseif val == Set([missing,1,0.0])
+		return true
+	elseif val == Set([missing,1.0,0])
+		return true
+	elseif val == Set([missing,1,0])
+		return true
+	elseif val == Set([missing,true,false])
+		return true
+	elseif val == Set([missing,1.0,false])
+		return true
+	elseif val == Set([missing,1,false])
+		return true
+	elseif val == Set([missing,true,0.0])
+		return true
+	elseif val == Set([missing,true,0])
+		return true
+
+	elseif val == Set([1.0,0.0])
+		return true
+	elseif val == Set([1,0.0])
+		return true
+	elseif val == Set([1.0,0])
+		return true
+	elseif val == Set([1,0])
+		return true
+	elseif val == Set([true,false])
+		return true
+	elseif val == Set([1.0,false])
+		return true
+	elseif val == Set([1,false])
+		return true
+	elseif val == Set([true,0.0])
+		return true
+	elseif val == Set([true,0])
+		return true
+	elseif val == Set([missing,0])
+		return true
+	elseif val == Set([missing,1])
+		return true
+	elseif val == Set([missing,0.0])
+		return true
+	elseif val == Set([missing,1.0])
+		return true
+	elseif val == Set([missing,true])
+		return true
+	elseif val == Set([missing,false])
+		return true
+	else
+		return false
+	end
 end
 
 
@@ -66,7 +153,7 @@ function fit_standardizer(df)
 	meanvec = Vector{Float64}()
 	stdvec = Vector{Float64}()
 	for colname in names(df)
-		if length(unique(df[:,colname])) > 2 && typeof(df[findfirst(x->!ismissing(x),df[:,colname]),colname]) <: Union{Float32, Float64}
+		if ! isonehot(unique(df[:,colname])) && typeof(df[findfirst(x->!ismissing(x),df[:,colname]),colname]) <: Union{Float32, Float64}
 			push!(namevec,colname)
 			push!(meanvec,mean(skipmissing(df[:,colname])) )
 			st = std(skipmissing(df[:,colname]))
@@ -97,7 +184,7 @@ function fit_normalizer(df)
 	maxvec = Vector{Float64}()
 	minvec = Vector{Float64}()
 	for colname in names(df)
-		if length(unique(df[:,colname])) > 2 && typeof(df[findfirst(x->!ismissing(x),df[:,colname]),colname]) <: Union{Float32, Float64}
+		if ! isonehot(unique(df[:,colname])) && typeof(df[findfirst(x->!ismissing(x),df[:,colname]),colname]) <: Union{Float32, Float64}
 			push!(namevec,colname)
 			mx = maximum(skipmissing(df[:,colname]))
 			push!(maxvec,mx )
@@ -123,4 +210,53 @@ function transform_normalizer!(df, normalizer)
 			df[i,normalizer.col_names[col] ] = ( df[i,normalizer.col_names[col] ] - normalizer.mins[col] ) / ( normalizer.maxs[col] - normalizer.mins[col]  )
 		end
 	end
+end
+
+
+
+function savechunk(df::DataFrame,sample_key::Vector{String},name::String;overwrite=false::Bool,chunk_size=5000::Int)::Nothing
+	try
+		mkdir(name)
+	catch
+		if overwrite
+			println("File already exists: overwriting")
+			rm(name, recursive=true)
+			mkdir(name)
+		else
+			println("File already exists: not overwriting")
+			return nothing
+		end
+	end
+	ids = collect(Iterators.partition(collect(1:nrow(df)), chunk_size))
+	for j in 1:length(ids)
+		FileIO.save("$name/$j.jld2", Dict("sample_key"=>sample_key[ids[j]],"x" => x[ids[j],:],
+			"y" => y[ids[j]], 
+			#         "train" => train, "test" => test
+			) ; compress = true
+		)
+	end
+	return nothing
+end	
+
+function loadchunk(name::String)
+	try
+		readdir(name)
+	catch
+		println("File does not exist")
+		return nothing
+	end
+	ids = readdir(name)
+	sample_key, xold, yold = FileIO.load("$name/1.jld2","sample_key","x" ,"y" );
+	for j in 1:length(ids)
+		if occursin(".jld2",ids[j]) 
+			n = parse(Int,split(ids[j],".")[1])
+			if n > 1
+				sample_keyt, xoldt, yoldt = FileIO.load("$name/$n.jld2","sample_key","x" ,"y" );
+				sample_key = vcat(sample_key,sample_keyt)
+				xold = vcat(xold,xoldt)
+				yold = vcat(yold,yoldt)
+			end
+		end
+	end
+	return sample_key, xold, yold
 end
