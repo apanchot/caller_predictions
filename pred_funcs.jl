@@ -179,6 +179,14 @@ function transform_standardizer!(df, standardzer)
 	end
 end
 
+function untransform_standardizer!(df, standardzer)
+	for col in 1:length(standardzer.col_names)
+		for i in 1:nrow(df)
+			df[i,standardzer.col_names[col] ] = ( df[i,standardzer.col_names[col] ] * standardzer.stds[col] ) + standardzer.means[col]
+		end
+	end
+end
+
 function fit_normalizer(df)
 	namevec = Vector{String}()
 	maxvec = Vector{Float64}()
@@ -208,6 +216,14 @@ function transform_normalizer!(df, normalizer)
 	for col in 1:length(normalizer.col_names)
 		for i in 1:nrow(df)
 			df[i,normalizer.col_names[col] ] = ( df[i,normalizer.col_names[col] ] - normalizer.mins[col] ) / ( normalizer.maxs[col] - normalizer.mins[col]  )
+		end
+	end
+end
+
+function untransform_normalizer!(df, normalizer)
+	for col in 1:length(normalizer.col_names)
+		for i in 1:nrow(df)
+			df[i,normalizer.col_names[col] ] = df[i,normalizer.col_names[col] ] * ( normalizer.maxs[col] - normalizer.mins[col]  ) + normalizer.mins[col]  
 		end
 	end
 end
