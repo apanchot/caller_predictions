@@ -173,18 +173,38 @@ end
 
 function transform_standardizer!(df, standardzer)
 	for col in 1:length(standardzer.col_names)
-		for i in 1:nrow(df)
+		for i in 1:DataFrames.nrow(df)
 			df[i,standardzer.col_names[col] ] = ( df[i,standardzer.col_names[col] ] - standardzer.means[col] ) / standardzer.stds[col]
 		end
 	end
 end
 
+function transform_standardizer(df2, standardzer)
+	df = copy(df2)
+	for col in 1:length(standardzer.col_names)
+		for i in 1:DataFrames.nrow(df)
+			df[i,standardzer.col_names[col] ] = ( df[i,standardzer.col_names[col] ] - standardzer.means[col] ) / standardzer.stds[col]
+		end
+	end
+	return df
+end
+
 function untransform_standardizer!(df, standardzer)
 	for col in 1:length(standardzer.col_names)
-		for i in 1:nrow(df)
+		for i in 1:DataFrames.nrow(df)
 			df[i,standardzer.col_names[col] ] = ( df[i,standardzer.col_names[col] ] * standardzer.stds[col] ) + standardzer.means[col]
 		end
 	end
+end
+
+function untransform_standardizer(df2, standardzer)
+	df = copy(df2)
+	for col in 1:length(standardzer.col_names)
+		for i in 1:DataFrames.nrow(df)
+			df[i,standardzer.col_names[col] ] = ( df[i,standardzer.col_names[col] ] * standardzer.stds[col] ) + standardzer.means[col]
+		end
+	end
+	return df
 end
 
 function fit_normalizer(df)
@@ -214,18 +234,38 @@ end
 
 function transform_normalizer!(df, normalizer)
 	for col in 1:length(normalizer.col_names)
-		for i in 1:nrow(df)
+		for i in 1:DataFrames.nrow(df)
 			df[i,normalizer.col_names[col] ] = ( df[i,normalizer.col_names[col] ] - normalizer.mins[col] ) / ( normalizer.maxs[col] - normalizer.mins[col]  )
 		end
 	end
 end
 
+function transform_normalizer(df2, normalizer)
+	df = copy(df2)
+	for col in 1:length(normalizer.col_names)
+		for i in 1:DataFrames.nrow(df)
+			df[i,normalizer.col_names[col] ] = ( df[i,normalizer.col_names[col] ] - normalizer.mins[col] ) / ( normalizer.maxs[col] - normalizer.mins[col]  )
+		end
+	end
+	return df
+end
+
 function untransform_normalizer!(df, normalizer)
 	for col in 1:length(normalizer.col_names)
-		for i in 1:nrow(df)
+		for i in 1:DataFrames.nrow(df)
 			df[i,normalizer.col_names[col] ] = df[i,normalizer.col_names[col] ] * ( normalizer.maxs[col] - normalizer.mins[col]  ) + normalizer.mins[col]  
 		end
 	end
+end
+
+function untransform_normalizer(df2, normalizer)
+	df = copy(df2)
+	for col in 1:length(normalizer.col_names)
+		for i in 1:DataFrames.nrow(df)
+			df[i,normalizer.col_names[col] ] = df[i,normalizer.col_names[col] ] * ( normalizer.maxs[col] - normalizer.mins[col]  ) + normalizer.mins[col]  
+		end
+	end
+	return df
 end
 
 
@@ -275,4 +315,103 @@ function loadchunk(name::String)
 		end
 	end
 	return sample_key, xold, yold
+end
+
+
+function logger(x::Float32,base=10::Int)::Float32
+    if x < 0.0000000001f0
+        return -10.0f0
+    else
+        return log10(x)
+    end
+end
+
+function logger(x::Float32,base=2::Int)::Float32
+    if x < 0.0000000001f0
+        return -33.21928f0
+    else
+        return log2(x)
+    end
+end
+
+function logger(x::Float32,base=ℯ::Float64)::Float32
+    if x < 0.0000000001f0
+        return -23.02585f0
+    else
+        return log(x)
+    end
+end
+
+function logger(x::Missing,base::Real)::Missing
+    return x
+end
+
+function logger(x::Float32,base::Real)::Float32
+	if base <= 0.0
+		error("base is not positive")
+	end
+    if x < 0.0000000001f0
+        return log(base,0.0000000001f0)
+    else
+        return log(base,x)
+    end
+end
+
+function unlogger(x::Float32,base=10::Int)::Float32
+    return exp10(x)
+end
+
+function unlogger(x::Float32,base=2::Int)::Float32
+    return exp2(x)
+end
+
+function unlogger(x::Float32,base=ℯ::Float64)::Float32
+    return exp(x)
+end
+
+function unlogger(x::Missing,base=ℯ::Float64)::Missing
+    return x
+end
+
+function unlogger(x::Float32,base::Real)::Float32
+	if base <= 0.0
+		error("base is not positive")
+	end
+    return base^x
+end
+
+function transform_log!(df, base)
+	for colname in names(df)
+		if ! isonehot(unique(df[:,colname])) && typeof(df[findfirst(x->!ismissing(x),df[:,colname]),colname]) <: Union{Float32, Float64}
+			df[:,colname ] = logger.(df[:,colname ],base)
+		end
+	end
+end
+
+function transform_log(df2, base)
+	df = copy(df2)
+	for colname in names(df)
+		if ! isonehot(unique(df[:,colname])) && typeof(df[findfirst(x->!ismissing(x),df[:,colname]),colname]) <: Union{Float32, Float64}
+			df[:,colname ] = logger.(df[:,colname ],base)
+		end
+	end
+	return df
+end
+
+function untransform_log!(df, base)
+	for colname in names(df)
+		if ! isonehot(unique(df[:,colname])) && typeof(df[findfirst(x->!ismissing(x),df[:,colname]),colname]) <: Union{Float32, Float64}
+			df[:,colname ] = unlogger.(df[:,colname ],base)
+		end
+	end
+end
+
+function untransform_log(df2, base)
+	df = copy(df2)
+	for colname in names(df)
+		if ! isonehot(unique(df[:,colname])) && typeof(df[findfirst(x->!ismissing(x),df[:,colname]),colname]) <: Union{Float32, Float64}
+			df[:,colname ] = unlogger.(df[:,colname ],base)
+		end
+	end
+	return df
 end
