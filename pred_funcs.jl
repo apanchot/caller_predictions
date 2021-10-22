@@ -98,7 +98,6 @@ function isonehot(val::Array)::Bool
 		return true
 	elseif val == Set([missing,true,0])
 		return true
-
 	elseif val == Set([1.0,0.0])
 		return true
 	elseif val == Set([1,0.0])
@@ -128,6 +127,18 @@ function isonehot(val::Array)::Bool
 	elseif val == Set([missing,true])
 		return true
 	elseif val == Set([missing,false])
+		return true
+	elseif val == Set([1])
+		return true
+	elseif val == Set([0])
+		return true
+	elseif val == Set([true])
+		return true
+	elseif val == Set([false])
+		return true
+	elseif val == Set([1.0])
+		return true
+	elseif val == Set([0.0])
 		return true
 	else
 		return false
@@ -318,30 +329,6 @@ function loadchunk(name::String)
 end
 
 
-function logger(x::Float32,base=10::Int)::Float32
-    if x < 0.0000000001f0
-        return -10.0f0
-    else
-        return log10(x)
-    end
-end
-
-function logger(x::Float32,base=2::Int)::Float32
-    if x < 0.0000000001f0
-        return -33.21928f0
-    else
-        return log2(x)
-    end
-end
-
-function logger(x::Float32,base=ℯ::Float64)::Float32
-    if x < 0.0000000001f0
-        return -23.02585f0
-    else
-        return log(x)
-    end
-end
-
 function logger(x::Missing,base::Real)::Missing
     return x
 end
@@ -350,24 +337,13 @@ function logger(x::Float32,base::Real)::Float32
 	if base <= 0.0
 		error("base is not positive")
 	end
-    if x < 0.0000000001f0
-        return log(base,0.0000000001f0)
+    if x < 1.0f0 # 0.0000000001f0
+        return 0.5f0*x-0.5f0 #log(base,0.0000000001f0)
     else
         return log(base,x)
     end
 end
 
-function unlogger(x::Float32,base=10::Int)::Float32
-    return exp10(x)
-end
-
-function unlogger(x::Float32,base=2::Int)::Float32
-    return exp2(x)
-end
-
-function unlogger(x::Float32,base=ℯ::Float64)::Float32
-    return exp(x)
-end
 
 function unlogger(x::Missing,base=ℯ::Float64)::Missing
     return x
@@ -376,6 +352,9 @@ end
 function unlogger(x::Float32,base::Real)::Float32
 	if base <= 0.0
 		error("base is not positive")
+	end
+	if x < 1.0f0
+		return 2.0f0*(x+0.5f0)
 	end
     return base^x
 end
